@@ -14,7 +14,8 @@ def get_map():
         x_range=(1000000, 3000000), y_range=(7500000, 8500000),
         x_axis_type="mercator", y_axis_type="mercator",
         plot_height=500, plot_width=800,
-        tools="pan,reset,wheel_zoom,lasso_select,save",
+        tools="pan,reset,wheel_zoom,lasso_select,save", 
+        title='X-parameter'
     )
 
     fig.xgrid.grid_line_color = None

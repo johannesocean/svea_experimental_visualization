@@ -15,14 +15,16 @@ def convert_projection(lats, lons):
     return x, y
 
 
-def get_columndata_source(df):
+def get_columndata_source(df, *args):
 
     xs, ys = convert_projection(df['latitude'].astype(float).values,
                                 df['longitude'].astype(float).values)
     df['LONGI'] = xs
     df['LATIT'] = ys
-    df['x'] = 0
-    df['y'] = 0
+
+    params = list(args)
+    df['x'] = df[params[0]]
+    df['y'] = df[params[1]]
     df = df.drop(columns=['latitude', 'longitude'])
 
     return ColumnDataSource(df)

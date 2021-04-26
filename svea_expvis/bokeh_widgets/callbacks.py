@@ -6,39 +6,49 @@ from bokeh.plotting import figure
 from bokeh.events import ButtonClick
 
 
-def update_colormapper(figure=None, plot=None, exp_cmap=None, data_source=None, x_sel=None):
+def update_colormapper(figure=None, plot=None, color_mapper=None, data_source=None, x_sel=None):
     code="""
-        exp_cmap;
         var parameter = cb_obj.value;
+        console.log('parameter', parameter);
+        var data = data_source.data;
         const {transform} = renderer.glyph.fill_color;
-    
-        exp_cmap.low = Math.min(...data_source.data[parameter]);
-        exp_cmap.high = Math.max(...data_source.data[parameter]);
-        transform.low = exp_cmap.low;
-        transform.high = exp_cmap.high;
 
-        renderer.glyph.fill_color = {field: cb_obj.value, transform: transform};
+        transform.low = color_mapper[parameter].low;
+        transform.high = color_mapper[parameter].high;
+
+        // console.log('transform.low', transform.low);
+        // console.log('transform.high', transform.high);
+
+        renderer.glyph.fill_color = {field: parameter, transform: transform};
         p.reset.emit()
     """
     return CustomJS(
-        args=dict(p=figure, renderer=plot, exp_cmap=exp_cmap, 
+        args=dict(p=figure, renderer=plot, color_mapper=color_mapper, 
                   data_source=data_source, x_sel=x_sel), 
         code=code)
 
 
 
-def select_callback(data_source=None, parameter=None):
+def select_callback(data_source=None, axis_obj=None, axis=None):
     code = """
-    var para = parameter;
     var selector_parameter = this.value;
-    var data = data_source.data;
-    data[parameter] = data[selector_parameter];
+    var data = data_source.data; 
+    var axis_obj = axis_obj;
+
+    if (axis == 'x') {
+        axis_obj.axis_label = selector_parameter
+        data['x'] = data[selector_parameter];
+    } else if (axis == 'y') {
+        axis_obj.axis_label = selector_parameter
+        data['y'] = data[selector_parameter];
+    }   
     data_source.change.emit();
     """
     return CustomJS(
         code=code,
         args={'data_source': data_source,
-              'parameter': parameter}
+              'axis_obj': axis_obj,
+              'axis': axis}
     )
 
 
