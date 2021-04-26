@@ -6,8 +6,8 @@ from bokeh.plotting import figure
 from bokeh.events import ButtonClick
 
 
-def update_colormapper(figure=None, plot=None, color_mapper=None, data_source=None, x_sel=None):
-    code="""
+def update_colormapper(fig=None, plot=None, color_mapper=None, data_source=None, x_sel=None):
+    code = """
         var parameter = cb_obj.value;
         console.log('parameter', parameter);
         var data = data_source.data;
@@ -20,13 +20,12 @@ def update_colormapper(figure=None, plot=None, color_mapper=None, data_source=No
         // console.log('transform.high', transform.high);
 
         renderer.glyph.fill_color = {field: parameter, transform: transform};
-        p.reset.emit()
+        fig.reset.emit()
     """
     return CustomJS(
-        args=dict(p=figure, renderer=plot, color_mapper=color_mapper, 
+        args=dict(fig=fig, renderer=plot, color_mapper=color_mapper,
                   data_source=data_source, x_sel=x_sel), 
         code=code)
-
 
 
 def select_callback(data_source=None, axis_obj=None, axis=None):
