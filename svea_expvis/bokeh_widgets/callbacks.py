@@ -41,6 +41,7 @@ def select_callback(data_source=None, axis_obj=None, axis=None):
         axis_obj.axis_label = selector_parameter
         data['y'] = data[selector_parameter];
     }   
+    data_source.selected.indices = [];
     data_source.change.emit();
     """
     return CustomJS(
