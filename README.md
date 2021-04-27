@@ -1,7 +1,7 @@
 SVEA Experimental Visualization
 ======
 
-Python 3 library with jupyternotebooks by Shd at SMHI.
+Python 3 library with jupyter notebooks by Shd at SMHI.
 
 - Visualize oceanographic data, eg. CTD, MVP, FerryBox, Tube-/Bottle-samples.
 
@@ -15,4 +15,4 @@ Tips: You can run jupyter notebooks in VScode
 Example visualization
 --------
 
-![Example Screen](docs/ferrybox_book.PNG)
+![Example Screen](docs/ferrybox_book.png)
