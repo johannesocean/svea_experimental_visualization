@@ -9,13 +9,13 @@ from bokeh.tile_providers import get_provider, Vendors
 tile_provider = get_provider('CARTODBPOSITRON')
 
 
-def get_map():
+def get_map(title=''):
     fig = figure(
-        x_range=(1000000, 3000000), y_range=(7500000, 8500000),
+        x_range=(500000, 3000000), y_range=(7000000, 10000000),
         x_axis_type="mercator", y_axis_type="mercator",
         plot_height=500, plot_width=800,
         tools="pan,reset,wheel_zoom,lasso_select,save", 
-        title='X-parameter'
+        title=title
     )
 
     fig.xgrid.grid_line_color = None

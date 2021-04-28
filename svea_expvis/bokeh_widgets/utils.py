@@ -4,8 +4,19 @@
 Created on 2021-04-23 15:10
 @author: johannes
 """
+import numpy as np
 from pyproj import CRS, transform
 from bokeh.models import ColumnDataSource
+
+
+def decmin_to_decdeg(pos):
+    pos = float(pos)
+    if pos < 99:
+        return pos
+
+    output = np.floor(pos/100.) + (pos % 100)/60.
+    output = "%.5f" % output
+    return float(output)
 
 
 def convert_projection(lats, lons):
@@ -15,16 +26,20 @@ def convert_projection(lats, lons):
     return x, y
 
 
-def get_columndata_source(df, *args):
+def get_columndata_source(df, *args, lat_col=None, lon_col=None):
 
-    xs, ys = convert_projection(df['latitude'].astype(float).values,
-                                df['longitude'].astype(float).values)
-    df['LONGI'] = xs
-    df['LATIT'] = ys
+    if lat_col:
+        xs, ys = convert_projection(df[lat_col].astype(float).values,
+                                    df[lon_col].astype(float).values)
+        df['LONGI'] = xs
+        df['LATIT'] = ys
 
-    params = list(args)
-    df['x'] = df[params[0]]
-    df['y'] = df[params[1]]
-    df = df.drop(columns=['latitude', 'longitude'])
+    if any(args):
+        params = list(args)
+        df['x'] = df[params[0]]
+        df['y'] = df[params[1]]
+
+    if lon_col and lat_col and (lon_col != 'LONGI' and lat_col != 'LATIT'):
+        df = df.drop(columns=[lat_col, lon_col])
 
     return ColumnDataSource(df)

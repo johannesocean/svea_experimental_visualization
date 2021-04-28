@@ -53,7 +53,6 @@ def select_callback(data_source=None, axis_obj=None, axis=None):
 
 
 def lasso_callback(x_selector=None, y_selector=None, data_source=None, corr_source=None):
-    """"""
     code = """
     console.log('lasso_callback');
 
@@ -79,6 +78,48 @@ def lasso_callback(x_selector=None, y_selector=None, data_source=None, corr_sour
         x_selector=x_selector, 
         y_selector=y_selector, 
         data_source=data_source, 
+        corr_source=corr_source
+        ),
+        code=code)
+
+
+def lasso_corr_callback(x_selector=None, y_selector=None, data_source=None, position_source=None, corr_source=None):
+    code = """
+    console.log('lasso_callback');
+
+    var x_param = x_selector.value;
+    var y_param = y_selector.value;
+
+    var data = data_source.data;
+    var pos_data = position_source.data;
+    var new_data = {x: [], y: []};
+
+    var indices = cb_obj.indices;
+    var selected_keys = [];
+
+    for (var i = 0; i < indices.length; i++) {
+        selected_keys.push(pos_data['KEY'][indices[i]]);
+    }
+
+    var key_val, x_val, y_val;
+    for (var i = 0; i < data.KEY.length; i++) {
+        key_val = data.KEY[i];
+
+        if (selected_keys.indexOf(key_val) !== -1) {
+            x_val = data[x_param][i];
+            y_val = data[y_param][i];
+            new_data.x.push(x_val);
+            new_data.y.push(y_val);
+        }
+    }
+    //console.log('new_data', new_data);
+    corr_source.data = new_data;
+    """
+    return CustomJS(args=dict(
+        x_selector=x_selector, 
+        y_selector=y_selector, 
+        data_source=data_source, 
+        position_source=position_source,
         corr_source=corr_source
         ),
         code=code)
