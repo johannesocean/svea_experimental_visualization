@@ -1,13 +1,16 @@
-# Copyright (c) 2020 SMHI, Swedish Meteorological and Hydrological Institute.
+# Copyright (c) 2020 SMHI, Swedish Meteorological and Hydrological Institute
 # License: MIT License (see LICENSE.txt or http://opensource.org/licenses/mit).
 """
-Created on 2021-04-28 09:42
+Created on 2021-05-03 17:59
 
 @author: johannes
 """
+import os
 import pandas as pd
-from svea_expvis.readers.txt import text_reader
+from ctdpy.core.utils import generate_filepaths
+from ctdpy.core.session import Session as ctd_session
 from svea_expvis.bokeh_widgets.utils import decmin_to_decdeg
+from svea_expvis.filter import Filter
 
 
 QFLAG_MAPPER = {
@@ -22,33 +25,21 @@ QFLAG_MAPPER = {
 }
 
 
-class PhyCheArchive:
-    """Handler of physical and chemical data."""
+class CTD2Frame:
+    """Example class."""
 
-    def __init__(self, archive_path=None):
+    def __init__(self, data_path=None):
         """Initialize."""
-        archive_path = archive_path or r'C:\PhysicalChemical\2019\
-        SHARK_PhysicalChemical_2019_BAS_SMHI\processed_data\data.txt'
-        df = text_reader(
-            'pandas',
-            archive_path,
-            encoding='cp1252',
-            sep='\t',
-            header=0,
-            dtype=str,
-            keep_default_na=False,
-        )
+        files = generate_filepaths(data_path,
+                                   pattern='ctd_profile_',
+                                   endswith='.txt')
 
-        params = [
-            'SDATE', 'STIME', 'SHIPC', 'SERNO', 'STATN', 'LATIT', 'LONGI', 'DEPH',
-            'TEMP_BTL', 'Q_TEMP_BTL', 'TEMP_CTD', 'Q_TEMP_CTD',
-            'SALT_BTL', 'Q_SALT_BTL', 'SALT_CTD', 'Q_SALT_CTD',
-            'DOXY_BTL', 'Q_DOXY_BTL', 'DOXY_CTD', 'Q_DOXY_CTD',
-            'FLUO_CTD', 'Q_FLUO_CTD',
-            'CPHL', 'Q_CPHL',
-        ]
+        filter_obj = Filter([os.path.basename(f) for f in files])
+        filter_obj.add_filter(month_list=[9, 10])
+        files = [f for f in files if os.path.basename(f) in filter_obj.valid_file_names]
 
-        self.df = df[params]
+        # ctd = ctd_session(filepaths=files, reader='smhi')
+
         self.df['KEY'] = self.df[['SDATE', 'SHIPC', 'SERNO']].apply(lambda x: '_'.join(x), axis=1)
         self.df['timestamp'] = self.df[['SDATE', 'STIME']].apply(
             lambda x: pd.Timestamp(' '.join(x)),
@@ -64,19 +55,19 @@ class PhyCheArchive:
         self.export_feather()
 
     def exclude_bad_data(self):
-        """Drop bad data from dataframe."""
+        """Description."""
         for qf, para in QFLAG_MAPPER.items():
             boolean = self.df[qf].isin(['S', 'B'])
             self.df.loc[boolean, para] = ''
         self.df = self.df.drop(columns=QFLAG_MAPPER.keys())
 
     def set_float_columns(self):
-        """Set float type to the given columns."""
+        """Description."""
         float_cols = ['LATIT', 'LONGI', 'DEPH', 'TEMP_BTL', 'TEMP_CTD', 'SALT_BTL', 'SALT_CTD',
                       'DOXY_BTL', 'DOXY_CTD',  'FLUO_CTD', 'CPHL']
         self.df[self.df == ''] = float('nan')
         self.df[float_cols] = self.df[float_cols].astype(float)
 
     def export_feather(self):
-        """Save to feather file."""
-        self.df.to_feather('phyche_archive_2019.feather')
+        """Description."""
+        self.df.to_feather('phyche_archive.feather')
