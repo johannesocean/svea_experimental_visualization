@@ -6,11 +6,169 @@ Created on 2021-04-28 09:42
 @author: johannes
 """
 from functools import partial
-from bokeh.models import Button, FileInput, CustomJS, CrosshairTool
+from bokeh.models import Button, FileInput, CustomJS, CrosshairTool, MultiChoice, MultiSelect
 from bokeh.layouts import row, Spacer
-from bokeh.models.widgets import Select
+from bokeh.models.widgets import Select, CheckboxButtonGroup
 from bokeh.plotting import figure
 from bokeh.events import ButtonClick
+
+
+def station_selection(source=None, options=None):
+    """Doc."""
+    code = """
+    var data = source.data;
+    var indices = [];
+    for (var i = 0; i < data.STATN.length; i++) {
+        if (this.value.indexOf(data.STATN[i]) > -1) {
+            indices.push(i);
+        }
+    }
+    source.selected.indices = indices;
+    source.change.emit();
+    """
+    multi_choice = MultiSelect(
+        options=options,
+        size=8,
+    )
+    multi_choice.js_on_change(
+        "value",
+        CustomJS(args={'source': source}, code=code)
+    )
+    return multi_choice
+
+
+def linreg_callback(source=None, legend_obj=None):
+    code = """
+    function roundToTwo(num) {    
+        return +(Math.round(num + "e+2")  + "e-2");
+    }
+    var legend_obj = legend_obj;
+    var data = source.data;
+
+    var x_values = [];
+    var y_values = [];
+    for (var i = 0; i < this.data.x.length; i++) {
+        if ( (! isNaN(this.data.x[i])) && (! isNaN(this.data.y[i])) ) {
+            x_values.push(this.data.x[i])
+            y_values.push(this.data.y[i])
+        }
+    }
+    var sum_x = 0;
+    var sum_y = 0;
+    var sum_xy = 0;
+    var sum_xx = 0;
+    var sum_yy = 0;
+    var n = x_values.length;
+    var x_reg = 0;
+    var y_reg = 0;
+    for (var i = 0; i < x_values.length; i++) {
+        x_reg = x_values[i];
+        y_reg = y_values[i];
+        sum_x += x_reg;
+        sum_y += y_reg;
+        sum_xx += x_reg*x_reg;
+        sum_yy += y_reg*y_reg;
+        sum_xy += x_reg*y_reg;
+    }
+
+    /* Calculate m and b for the formular:
+     * y = x * m + b
+     */
+    var m = (n*sum_xy - sum_x*sum_y) / (n*sum_xx - sum_x*sum_x);
+    var b = (sum_y/n) - (m*sum_x)/n;
+    var result_values_x = [Math.min(...x_values), Math.max(...x_values)];
+    var result_values_y = [];
+    var x = 0;
+    var y = 0;
+    for (var i = 0; i < result_values_x.length; i++) {
+        x = result_values_x[i];
+        //console.log('x', x)
+        y = x * m + b;
+        result_values_y.push(y);
+    }
+    var b_str = roundToTwo(b).toString();
+    var m_str = roundToTwo(m).toString();
+    var r2 = roundToTwo(Math.pow((n*sum_xy - sum_x*sum_y)/Math.sqrt((n*sum_xx-sum_x*sum_x)*(n*sum_yy-sum_y*sum_y)),2)).toString();
+    legend_obj.label.value = "y="+b_str+"+x*"+m_str +";  r2="+r2;
+    //console.log('eq:', x, roundToTwo(m), roundToTwo(b));
+    data['x'] = result_values_x;
+    data['y'] = result_values_y;
+    source.change.emit();
+    """
+    return CustomJS(args={
+        'source': source,
+        'legend_obj': legend_obj,
+    }, code=code)
+
+
+def check_box_group_log():
+    code = """
+    if (this.active.length == 2) {
+        if (this.name == '0') {
+            this.name = '1';
+            this.active = [1];
+        } else {
+            this.name = '0';
+            this.active = [0];
+        }
+    } else {
+        this.active = [parseInt(this.name)];
+    }
+    """
+    cb = CustomJS(code=code)
+
+    boxlog = CheckboxButtonGroup(labels=['log off', 'log'], active=[0], name='0')
+    boxlog.js_on_click(cb)
+    return boxlog
+
+
+def check_box_group_axis_scale(corr_fig=None, source=None):
+    code = """
+    var data = source.data;
+    if (this.active.length == 2) {
+        var x_arr = [];
+        var y_arr = [];
+        for (var i = 0; i < data.x.length; i++) {
+            if ( ! isNaN(data.x[i]) ) {
+                x_arr.push(data.x[i]);
+            }
+        }
+        for (var i = 0; i < data.y.length; i++) {
+            if ( ! isNaN(data.y[i]) ) {
+                y_arr.push(data.y[i]);
+            }
+        }
+        if (this.name == '0') {
+            this.name = '1';
+            this.active = [1];
+            var max_val = Math.max(...x_arr, ...y_arr) * 1.05;
+            var min_val = Math.min(...x_arr, ...y_arr) - (max_val * 0.05);
+            figure.x_range.start = min_val;
+            figure.x_range.end = max_val;
+            figure.y_range.start = min_val;
+            figure.y_range.end = max_val;
+        } else {
+            this.name = '0';
+            this.active = [0];
+            figure.x_range.end = Math.max(...x_arr) * 1.05;
+            figure.x_range.start = Math.min(...x_arr) - (figure.x_range.end * 0.05);
+            figure.y_range.end = Math.max(...y_arr) * 1.05;
+            figure.y_range.start = Math.min(...y_arr) - (figure.y_range.end * 0.05);
+        }
+    } else {
+        this.active = [parseInt(this.name)];
+    }
+    figure.x_range.change.emit();
+    figure.y_range.change.emit();
+    """
+    cb = CustomJS(args={
+        'figure': corr_fig,
+        'source': source,
+    }, code=code)
+
+    box = CheckboxButtonGroup(labels=['Auto', '1 to 1'], active=[0], name='0')
+    box.js_on_click(cb)
+    return box
 
 
 def update_colormapper(fig=None, plot=None, color_mapper=None, data_source=None, x_sel=None):
@@ -110,7 +268,7 @@ def select_callback(data_source=None, axis_objs=None, axis=None):
 def lasso_callback(x_selector=None, y_selector=None, data_source=None, corr_source=None):
     """Return JS callback lasso object."""
     code = """
-    console.log('lasso_callback');
+    //console.log('lasso_callback');
 
     var x_param = x_selector.value;
     var y_param = y_selector.value;
@@ -124,7 +282,6 @@ def lasso_callback(x_selector=None, y_selector=None, data_source=None, corr_sour
     for (var i = 0; i < indices.length; i++) {
         x_val = data[x_param][indices[i]];
         y_val = data[y_param][indices[i]];
-
         new_data.x.push(x_val);
         new_data.y.push(y_val);
     }
@@ -134,7 +291,7 @@ def lasso_callback(x_selector=None, y_selector=None, data_source=None, corr_sour
         x_selector=x_selector, 
         y_selector=y_selector, 
         data_source=data_source, 
-        corr_source=corr_source
+        corr_source=corr_source,
         ),
         code=code)
 
@@ -186,7 +343,8 @@ def lasso_transect_callback(z_selector=None,
 
 
 def lasso_corr_callback(x_selector=None, y_selector=None, data_source=None, 
-                        position_source=None, corr_source=None, corr_plot=None):
+                        position_source=None, corr_source=None, corr_plot=None,
+                        logbox=None):
     """Return JS callback lasso object."""
     code = """
     console.log('lasso_callback');
@@ -212,6 +370,10 @@ def lasso_corr_callback(x_selector=None, y_selector=None, data_source=None,
         if (selected_keys.indexOf(key_val) !== -1) {
             x_val = data[x_param][i];
             y_val = data[y_param][i];
+            if (logbox.name == '1') {
+                x_val = Math.log(x_val);
+                y_val = Math.log(y_val);
+            }
             dep_val = data['DEPH'][i];
             new_data.x.push(x_val);
             new_data.y.push(y_val);
@@ -240,6 +402,7 @@ def lasso_corr_callback(x_selector=None, y_selector=None, data_source=None,
         position_source=position_source,
         corr_source=corr_source,
         corr_plot=corr_plot,
+        logbox=logbox,
         ),
         code=code)
 
