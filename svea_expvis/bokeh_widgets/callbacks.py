@@ -146,6 +146,7 @@ def check_box_group_axis_scale(corr_fig=None, source=None):
             figure.x_range.start = min_val;
             figure.x_range.end = max_val;
             figure.y_range.start = min_val;
+            figure.y_range.start = min_val;
             figure.y_range.end = max_val;
         } else {
             this.name = '0';
@@ -354,7 +355,7 @@ def lasso_corr_callback(x_selector=None, y_selector=None, data_source=None,
 
     var data = data_source.data;
     var pos_data = position_source.data;
-    var new_data = {x: [], y: [], dep: [], key: []};
+    var new_data = {x: [], y: [], dep: [], key: [], sun: []};
 
     var indices = cb_obj.indices;
     var selected_keys = [];
@@ -363,7 +364,7 @@ def lasso_corr_callback(x_selector=None, y_selector=None, data_source=None,
         selected_keys.push(pos_data['KEY'][indices[i]]);
     }
 
-    var key_val, x_val, y_val, dep_val;
+    var key_val, x_val, y_val, dep_val, sun_val;
     for (var i = 0; i < data.KEY.length; i++) {
         key_val = data.KEY[i];
 
@@ -375,10 +376,12 @@ def lasso_corr_callback(x_selector=None, y_selector=None, data_source=None,
                 y_val = Math.log(y_val);
             }
             dep_val = data['DEPH'][i];
+            sun_val = data['SUN_ANGLE'][i];
             new_data.x.push(x_val);
             new_data.y.push(y_val);
             new_data.dep.push(dep_val);
             new_data.key.push(key_val);
+            new_data.sun.push(sun_val);
         }
     }
     if (new_data.x.length > 1) {
@@ -425,16 +428,28 @@ def range_selection_callback(data_source=None):
                     code=code)
 
 
+def sun_angle_selection_callback(data_source=None):
+    """Return JS callback select object."""
+    code = """
+    var data = data_source.data;
+    var min_ang = cb_obj.value[0];
+    var max_ang = cb_obj.value[1];
+    var indices = [];
+    for (var i = 0; i < data.sun.length; i++) {
+        if ((data.sun[i] >= min_ang) && (data.sun[i] <= max_ang)) {
+            indices.push(i)
+        }
+    }
+    data_source.selected.indices = indices;
+    """
+    return CustomJS(args={'data_source': data_source},
+                    code=code)
+
+
 def range_slider_update_callback(slider=None, data_source=None):
     """Return JS callback slider object."""
     code = """
-    var data = data_source.data;        
-    //var values = [];
-    //var i = 0;
-    //while ( ! isNaN(data.y[i]) ) {
-    //    values.push(data.y[i])
-    //    i++
-    //}
+    var data = data_source.data;
     slider.start = Math.min.apply(Math, data.dep);
     slider.end = Math.max.apply(Math, data.dep);
     slider.value = [slider.start, slider.end];

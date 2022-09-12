@@ -18,6 +18,7 @@ from svea_expvis.bokeh_widgets.callbacks import (
     select_callback,
     month_selection_callback,
     range_selection_callback,
+    sun_angle_selection_callback,
     range_slider_update_callback,
     check_box_group_axis_scale,
     check_box_group_log,
@@ -31,7 +32,7 @@ from bokeh.models import ColumnDataSource, PreText, Select, Circle, RangeSlider,
 from bokeh.layouts import column, row
 
 
-output_file("chl_fluo.html")
+output_file("chl_fluo_2018-2022.html")
 
 DEFAULT_PARAMETERS = [
     'TEMP_BTL', 'TEMP_CTD', 'SALT_BTL', 'SALT_CTD',  'DOXY_BTL', 'DOXY_CTD',
@@ -41,15 +42,20 @@ STATION_OPTIONS = [
     'Å13', 'Å15', 'Å17', 'SLÄGGÖ', 'P2', 'FLADEN', 'N14 FALKENBERG', 'ANHOLT E',
     'W LANDSKRONA', 'BY1', 'BY2 ARKONA', 'BY4 CHRISTIANSÖ',
     'BY5 BORNHOLMSDJ', 'HANÖBUKTEN', 'REF M1V1', 'BCS III-10', 'BY10',
-    'BY15 GOTLANDSDJ', 'BY20 FÅRÖDJ', 'BY29 / LL19',
-    'BY31 LANDSORTSDJ', 'BY32 NORRKÖPINGSDJ', 'BY38 KARLSÖDJ',
+    'BY15 GOTLANDSDJ', 'BY20 FÅRÖDJUPET', 'BY29/LL19',
+    'BY31 LANDSORTSDJ', 'BY32 NORRKÖPING', 'BY38 KARLSÖDJ',
 ]
 
 
-cfig = Config(data_file_name='phyche_archive_2020.feather')
+cfig = Config(
+    data_file_name='phyche_archive_2018-2022.feather'
+    # data_file_name='phyche_archive_2020.feather'
+)
 
 df = pd.read_feather(cfig.data_path)
 df['MONTH'] = df['timestamp'].dt.month
+
+# df = df.loc[df['timestamp'].dt.hour.isin(list(range(9, 17))), :]
 
 position_master_source = get_columndata_source(
     df.loc[:, ['STATN', 'LATIT', 'LONGI', 'KEY', 'MONTH']].drop_duplicates().reset_index(drop=True),
@@ -60,7 +66,7 @@ position_source = get_columndata_source(
     lat_col='LATIT', lon_col='LONGI',
 )
 
-data_source = get_columndata_source(df.loc[:, ['KEY', 'DEPH'] + DEFAULT_PARAMETERS], 'FLUO_CTD', 'CPHL')
+data_source = get_columndata_source(df.loc[:, ['KEY', 'DEPH', 'SUN_ANGLE'] + DEFAULT_PARAMETERS], 'FLUO_CTD', 'CPHL')
 
 callback_month = month_selection_callback(position_source=position_source, position_master_source=position_master_source)
 month_selector = Select(
@@ -94,7 +100,7 @@ corr = figure(
 )
 corr.xaxis.axis_label = 'FLUO_CTD'
 corr.yaxis.axis_label = 'CPHL'
-corr_source = ColumnDataSource(data=dict(x=[], y=[], dep=[], key=[]))
+corr_source = ColumnDataSource(data=dict(x=[], y=[], dep=[], key=[], sun=[]))
 corr_renderer = corr.circle(
     x="x",
     y="y",
@@ -155,6 +161,11 @@ depth_slider = RangeSlider(start=0, end=100, value=(0, 100),
                            width=300)
 depth_slider.js_on_change('value', range_selection_callback(data_source=corr_source))
 
+sun_angle_slider = RangeSlider(start=-60, end=60, value=(-60, 60),
+                               step=1, title="Select sun angle range",
+                               width=300)
+sun_angle_slider.js_on_change('value', sun_angle_selection_callback(data_source=corr_source))
+
 checkbox = check_box_group_axis_scale(corr_fig=corr, source=corr_source)
 checkbox_log = check_box_group_log()
 
@@ -192,11 +203,12 @@ show(
                 depth_slider
             ),
             row(
-                checkbox_log,
-                checkbox
-            ),
-            row(
-                station_choice
+                station_choice,
+                column(
+                    sun_angle_slider,
+                    checkbox,
+                    checkbox_log,
+                )
             ),
         ),
         column(
